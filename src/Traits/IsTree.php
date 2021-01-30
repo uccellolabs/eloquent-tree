@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Uccello\EloquentTree\Contracts\Tree;
 use Uccello\EloquentTree\Exception\MissingParentException;
 use Uccello\EloquentTree\Exception\SelfConnectionException;
+use Uccello\EloquentTree\Support\Observer;
 
 trait IsTree
 {
@@ -142,7 +143,8 @@ trait IsTree
      */
     public function isRoot()
     {
-        return (empty($this->{$this->getTreeColumn('parent')})) ? true : false;
+        return $this->{$this->getTreeColumn('path')} === $this->getKey() . '/'
+            && $this->{$this->getTreeColumn('level')} === 0;
     }
 
     /**
@@ -316,9 +318,8 @@ trait IsTree
     /**
      * Adds observer inheritance
      */
-    protected static function boot()
+    protected static function bootIsTree()
     {
-        parent::boot();
         static::observe(new Observer());
     }
 
@@ -339,8 +340,14 @@ trait IsTree
      */
     public static function getLeaves()
     {
-        $parents  = static::select('parent_id')->whereNotNull('parent_id')->distinct()->get()->pluck('parent_id')->all();
-        return static::wherenotin('id',$parents);
+        $parents  = static::select('parent_id')
+            ->whereNotNull('parent_id')
+            ->distinct()
+            ->get()
+            ->pluck('parent_id')
+            ->all();
+
+        return static::wherenotin('id', $parents);
     }
 
     /**
@@ -400,7 +407,6 @@ trait IsTree
                 static::mapDescendantsArray($node, $item['children']);
             }
         }
-
     }
 
     //---------------------------------------------------------------------------------------------------------------
